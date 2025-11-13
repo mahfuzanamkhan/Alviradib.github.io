@@ -55,8 +55,9 @@ function loadVideo() {
   const id = extractVideoID(url);
   if (!id) return alert("Invalid YouTube link!");
   player.loadVideoById(id);
-  db.ref("rooms/" + room).update({ video: id });
+  db.ref("rooms/" + room).update({ video: id, action: "pause", time: 0 });
 }
+
 
 // Extract YouTube ID
 function extractVideoID(url) {
@@ -70,18 +71,25 @@ function listenRoom() {
     const data = snap.val();
     if (!data) return;
 
-    // Sync video loading
-    if (data.video && (!player.getVideoData().video_id || player.getVideoData().video_id !== data.video)) {
+    // ✅ Load video if guest doesn't have it
+    const currentId = player?.getVideoData()?.video_id;
+    if (data.video && (!currentId || currentId !== data.video)) {
       player.loadVideoById(data.video);
     }
 
-    // Sync play/pause for guests
+    // ✅ Sync play/pause for guests only
     if (!isHost) {
-      if (data.action === "play") player.playVideo();
-      else if (data.action === "pause") player.pauseVideo();
+      if (data.action === "play") {
+        player.playVideo();
+        player.seekTo(data.time || 0, true);
+      } else if (data.action === "pause") {
+        player.pauseVideo();
+        player.seekTo(data.time || 0, true);
+      }
     }
   });
 }
+
 
 // Host sync actions
 function onPlayerStateChange(event) {
